@@ -1,0 +1,110 @@
+---
+title: "leaflet_test"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+```{r message=F,warning=F}
+library(tidyverse)
+library(sf)
+library(leaflet)
+
+sf_village <- #read_sf(dsn = "data/TPE_detail", layer = "Taipei_Vill") %>% 
+  read_sf(dsn = "/Users/dennistseng/Documents/TUIC/data/TPE_detail", layer = "Taipei_Vill") %>% 
+  mutate(across(where(is.character), ~iconv(., from = "BIG5", to = "UTF8"))) %>%
+  rename_with(~str_to_lower(.), everything()) %>% mutate(area = as.double(st_area(.))) %>% 
+  st_transform(4326)
+
+sf_town <- sf_village %>% group_by(town, town_id) %>%
+  summarise(census = sum(census), area = sum(area)) %>%
+  ungroup() %>% st_transform(4326)
+
+# Set value for the minZoom and maxZoom settings.
+leaflet(options = leafletOptions(minZoom = 0, maxZoom = 18))
+
+m_original <- leaflet(sf_town)
+# m_original %>%
+#   addTiles() %>% 
+#   addPolygons(color = "#444444", weight = 1, smoothFactor = 0.5,
+#               opacity = 1.0, fillOpacity = 0.5,
+#               # fillColor = ~colorQuantile("YlOrRd", cencus)(cencus),
+#               highlightOptions = highlightOptions(color = "white", weight = 2,
+#                                                   bringToFront = TRUE),
+#               group = "town")%>% 
+#   addLayersControl(
+#     overlayGroups = c("town"),
+#     options = layersControlOptions(collapsed = FALSE)
+#   )
+
+m_original %>% addProviderTiles(providers$Stamen.Toner) %>% 
+  addPolygons(color = "#444444", weight = 1, smoothFactor = 0.5,
+              opacity = 1.0, fillOpacity = 0.5,
+              # fillColor = ~colorQuantile("YlOrRd", cencus)(cencus),
+              highlightOptions = highlightOptions(color = "white", weight = 2,
+                                                  bringToFront = TRUE),
+              group = "town")%>% 
+  addLayersControl(
+    overlayGroups = c("town"),
+    options = layersControlOptions(collapsed = FALSE)
+  )
+
+m_original %>% addProviderTiles(providers$CartoDB.Positron) %>% 
+  addPolygons(color = "#444444", weight = 1, smoothFactor = 0.5,
+              opacity = 1.0, fillOpacity = 0.5,
+              # fillColor = ~colorQuantile("YlOrRd", cencus)(cencus),
+              highlightOptions = highlightOptions(color = "white", weight = 2,
+                                                  bringToFront = TRUE),
+              group = "town")%>% 
+  addLayersControl(
+    overlayGroups = c("town"),
+    options = layersControlOptions(collapsed = FALSE)
+  )
+
+# col_2nd <- colorQuantile("Blues", sf_2nd_agg$p_new, n = 7)
+# col_1st <- colorQuantile("Blues", sf_1st_agg$p_new, n = 7)
+# col_0st <- colorQuantile("Blues", sf_0st_agg$p_new, n = 7)
+col_town <- colorNumeric(palette = "Blues", domain = sf_town$census)
+col_village <- colorNumeric(palette = "Greens", domain = sf_village$census)
+sf_village %>% as_tibble() %>% select(census) %>%
+  arrange(desc(census))
+m_original %>% addProviderTiles(providers$Esri.NatGeoWorldMap) %>%
+  addPolygons(
+    stroke = T, #邊界的線顯示與否
+    color = "black", #邊界的線的顏色
+    weight = 1, #邊界的線的粗細
+    opacity = 0.7, #邊界的線的透明度
+    # weight = 1,
+    smoothFactor = 0.1,
+    fillOpacity = 0.7, #polygon 的透明度
+    fillColor = ~col_town(census), #polygon 的顏色
+    highlightOptions = highlightOptions(color = "white", weight = 2,
+                                                  bringToFront = TRUE),
+              group = "town") %>%
+  addPolygons(data = sf_village, 
+              stroke = T, #邊界的線顯示與否
+              color = "black", #邊界的線的顏色
+              weight = 1, #邊界的線的粗細
+              opacity = 0.7, #邊界的線的透明度
+              # weight = 1,
+              smoothFactor = 0.1,
+              fillOpacity = 0.7, #polygon 的透明度
+              fillColor = ~col_village(census), #polygon 的顏色
+              highlightOptions = highlightOptions(color = "white", weight = 2,
+                                                  bringToFront = TRUE),
+              group = "village") %>%
+  # addPolygons(data = sf_2nd_agg, 
+  #             fillColor  = ~col_2nd(p_new), group = "stat_2nd") %>%
+  # addPolygons(data = sf_1st_agg,
+  #             fillColor  = ~col_1st(p_new), group = "stat_1st") %>%
+  # addPolygons(data = sf_0st_agg,
+  #             fillColor  = ~col_0st(p_new), group = "stat_0st") %>%
+  addLayersControl(
+    overlayGroups = c("town", "village", "stat_2nd", "stat_1st", "stat_0st"),
+    options = layersControlOptions(collapsed = FALSE)
+  )
+```
